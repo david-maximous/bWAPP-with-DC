@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DC_VERSION: $(curl -s https://dependency-check.github.io/DependencyCheck/current.txt )
       NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
     steps:
@@ -35,7 +34,8 @@ jobs:
 
       - name: Download Dependency-Check CLI
         run: |
-          curl -L -o dc.zip https://github.com/dependency-check/DependencyCheck/releases/download/v${DC_VERSION}/dependency-check-${DC_VERSION}-release.zip
+          DC_VERSION=$(curl -s https://dependency-check.github.io/DependencyCheck/current.txt)
+          curl -Ls -o dc.zip https://github.com/dependency-check/DependencyCheck/releases/download/v${DC_VERSION}/dependency-check-${DC_VERSION}-release.zip
           unzip dc.zip -d dc
 
       - name: Run OWASP Dependency-Check
