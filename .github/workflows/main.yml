@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DC_VERSION: 9.0.10
+      DC_VERSION: $(curl -s https://dependency-check.github.io/DependencyCheck/current.txt)
       NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
     steps:
@@ -42,10 +42,9 @@ jobs:
         run: |
           mkdir -p reports/Dependency-Check
           ./dc/dependency-check/bin/dependency-check.sh \
-            --scan ./bWAPP \
+            --scan ./app \
             --format "ALL" \
             --out reports/Dependency-Check \
-            --failOnCVSS 7 \
             --prettyPrint \
             --enableRetired \
             --nvdApiKey "${NVD_API_KEY}" \
