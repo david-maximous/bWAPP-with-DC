@@ -1,0 +1,54 @@
+name: Run OWASP Dependency-Check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  run-dependency-check:
+    runs-on: ubuntu-latest
+
+    env:
+      DC_VERSION: 12.1.3
+      NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        run: sudo apt update && sudo apt install -y default-jre unzip curl
+
+      - name: Restore Dependency-Check Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.dependency-check
+          key: dependency-check-cache-${{ env.DC_VERSION }}
+          restore-keys: |
+            dependency-check-cache-
+
+      - name: Download Dependency-Check
+        run: |
+          curl -L -o dc.zip https://github.com/dependency-check/DependencyCheck/releases/download/v${DC_VERSION}/dependency-check-${DC_VERSION}-release.zip
+          unzip dc.zip -d dc
+
+      - name: Run Dependency-Check
+        run: |
+          mkdir -p reports
+          ./dc/dependency-check/bin/dependency-check.sh \
+            --scan ./app \
+            --format "ALL" \
+            --out reports \
+            --failOnCVSS 7 \
+            --prettyPrint \
+            --enableRetired \
+            --nvdApiKey "${NVD_API_KEY}" \
+            --data ~/.dependency-check
+
+      - name: Save Vulnerability Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dc-report
+          path: reports
