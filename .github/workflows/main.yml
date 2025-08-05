@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DC_VERSION: $(curl -s https://dependency-check.github.io/DependencyCheck/current.txt)
+      DC_VERSION: $(curl -s https://dependency-check.github.io/DependencyCheck/current.txt )
       NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
     steps:
