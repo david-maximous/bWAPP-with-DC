@@ -11,7 +11,6 @@ jobs:
 
     env:
       NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-      CONTAINERD_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE: 1
 
     steps:
       - name: Checkout Repository
@@ -38,10 +37,15 @@ jobs:
           DC_VERSION=$(curl -s https://dependency-check.github.io/DependencyCheck/current.txt)
           curl -Ls -o dc.zip https://github.com/dependency-check/DependencyCheck/releases/download/v${DC_VERSION}/dependency-check-${DC_VERSION}-release.zip
           unzip dc.zip -d dc
-
-      - name: Run OWASP Dependency-Check
+      - name: Make Output Folders
         run: |
           mkdir -p reports/Dependency-Check
+          mkdir -p reports/Trivy
+          mkdir -p image
+          
+        
+      - name: Run OWASP Dependency-Check
+        run: |
           ./dc/dependency-check/bin/dependency-check.sh \
             --scan ./app \
             --format "ALL" \
@@ -54,7 +58,6 @@ jobs:
       - name: Build Docker Image
         run: |
           docker build -t $IMAGE_NAME:latest .
-          mkdir -p image
           docker save $IMAGE_NAME:latest -o image/${IMAGE_NAME}-image.tar
 
       - name: Save Docker Image To Artifacts
