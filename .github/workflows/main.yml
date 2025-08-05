@@ -11,6 +11,7 @@ jobs:
 
     env:
       NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+      CONTAINERD_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE: 1
 
     steps:
       - name: Checkout Repository
