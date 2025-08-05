@@ -54,31 +54,36 @@ jobs:
       - name: Build Docker Image
         run: |
           docker build -t $IMAGE_NAME:latest .
-
-      - name: Save Docker Image
-        run: |
           mkdir -p image
           docker save $IMAGE_NAME:latest -o image/${IMAGE_NAME}-image.tar
 
-      - name: Upload Docker Image To Artifact
+      - name: Save Docker Image To Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: bwapp-docker-image
           path: image/${{ env.IMAGE_NAME }}-image.tar
 
-      - name: Trivy Scan on Docker Image
-        run: |
-          mkdir -p reports/Trivy
-          docker load -i image/${IMAGE_NAME}-image.tar
+      - name: Run Trivy Scan On Docker Image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:latest
+          format: 'table'
+          ignore-unfixed: false
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+          output: 'reports/Trivy/trivy-image-report.txt'
 
-          trivy image \
-            --severity CRITICAL,HIGH \
-            --format json -o reports/Trivy/trivy-report.json $IMAGE_NAME:latest
+      - name: Run Trivy Scan On Repository Files
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: './app'
+          format: 'table'
+          ignore-unfixed: false
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+          output: 'reports/Trivy/trivy-repo-report.txt'
 
-          trivy image \
-            --format sarif -o reports/Trivy/trivy-report.sarif $IMAGE_NAME:latest
 
-      - name: Save Security Reports
+      - name: Save All Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
