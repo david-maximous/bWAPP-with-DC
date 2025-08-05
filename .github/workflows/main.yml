@@ -1,4 +1,4 @@
-name: Run OWASP Dependency-Check
+name: Build Docker Image + Security Scan
 
 on:
   push:
@@ -6,18 +6,24 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-dependency-check:
+  security-scan:
     runs-on: ubuntu-latest
 
     env:
-      DC_VERSION: 12.1.3
+      DC_VERSION: 9.0.10
       NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
     steps:
-      - name: Checkout Repo
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Java
+      - name: Set Image Name from Repo
+        id: vars
+        run: |
+          IMAGE_NAME=$(basename $GITHUB_REPOSITORY | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
+
+      - name: Install Java + Tools
         run: sudo apt update && sudo apt install -y default-jre unzip curl
 
       - name: Restore Dependency-Check Cache
@@ -25,30 +31,56 @@ jobs:
         with:
           path: ~/.dependency-check
           key: dependency-check-cache-${{ env.DC_VERSION }}
-          restore-keys: |
-            dependency-check-cache-
+          restore-keys: dependency-check-cache-
 
-      - name: Download Dependency-Check
+      - name: Download Dependency-Check CLI
         run: |
           curl -L -o dc.zip https://github.com/dependency-check/DependencyCheck/releases/download/v${DC_VERSION}/dependency-check-${DC_VERSION}-release.zip
           unzip dc.zip -d dc
 
-      - name: Run Dependency-Check
+      - name: Run OWASP Dependency-Check
         run: |
-          mkdir -p reports
+          mkdir -p reports/Dependency-Check
           ./dc/dependency-check/bin/dependency-check.sh \
-            --scan ./app \
+            --scan ./bWAPP \
             --format "ALL" \
-            --out reports \
+            --out reports/Dependency-Check \
             --failOnCVSS 7 \
             --prettyPrint \
             --enableRetired \
             --nvdApiKey "${NVD_API_KEY}" \
             --data ~/.dependency-check
 
-      - name: Save Vulnerability Reports
+      - name: Build Docker Image
+        run: |
+          docker build -t $IMAGE_NAME:latest .
+
+      - name: Save Docker Image
+        run: |
+          mkdir -p image
+          docker save $IMAGE_NAME:latest -o image/${IMAGE_NAME}-image.tar
+
+      - name: Upload Docker Image To Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bwapp-docker-image
+          path: image/${{ env.IMAGE_NAME }}-image.tar
+
+      - name: Trivy Scan on Docker Image
+        run: |
+          mkdir -p reports/Trivy
+          docker load -i image/${IMAGE_NAME}-image.tar
+
+          trivy image \
+            --severity CRITICAL,HIGH \
+            --format json -o reports/Trivy/trivy-report.json $IMAGE_NAME:latest
+
+          trivy image \
+            --format sarif -o reports/Trivy/trivy-report.sarif $IMAGE_NAME:latest
+
+      - name: Save Security Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dc-report
+          name: security-scan-reports
           path: reports
